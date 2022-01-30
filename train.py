@@ -10,7 +10,7 @@ from cp_dataset import CPDataset, CPDataLoader
 from networks import GMM, UnetGenerator, VGGLoss, load_checkpoint, save_checkpoint
 
 from tensorboardX import SummaryWriter
-from visualization import board_add_image, board_add_images
+from visualization import board_add_image, board_add_images, plot_cost
 
 
 def get_opt():
@@ -53,9 +53,11 @@ def train_gmm(opt, train_loader, model, board):
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda = lambda step: 1.0 -
             max(0, step - opt.keep_step) / float(opt.decay_step + 1))
     
-    current_step = 0
+    current_step = 1
     if not opt.checkpoint =='' and os.path.exists(opt.checkpoint):
         current_step = int(opt.checkpoint.split('/')[-1].split('_')[-1].split('.')[0])
+
+    gmm_loss = []
 
     for step in range(current_step - 1, opt.keep_step + opt.decay_step):
         iter_start_time = time.time()
@@ -80,11 +82,13 @@ def train_gmm(opt, train_loader, model, board):
                    [c, warped_cloth, im_c], 
                    [warped_grid, (warped_cloth+im)*0.5, im]]
         
-        loss = criterionL1(warped_cloth, im_c)    
+        loss = criterionL1(warped_cloth, im_c) 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-            
+        
+        gmm_loss.append(loss)
+
         if (step+1) % opt.display_count == 0:
             board_add_images(board, 'combine', visuals, step+1)
             board.add_scalar('metric', loss.item(), step+1)
@@ -92,6 +96,7 @@ def train_gmm(opt, train_loader, model, board):
             print('step: %8d, time: %.3f, loss: %4f' % (step+1, t, loss.item()), flush=True)
 
         if (step+1) % opt.save_count == 0:
+            plot_cost(gmm_loss)
             save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'step_%06d.pth' % (step+1)))
 
 
@@ -108,8 +113,14 @@ def train_tom(opt, train_loader, model, board):
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr, betas=(0.5, 0.999))
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda = lambda step: 1.0 -
             max(0, step - opt.keep_step) / float(opt.decay_step + 1))
+
+    current_step = 1
+    if not opt.checkpoint =='' and os.path.exists(opt.checkpoint):
+        current_step = int(opt.checkpoint.split('/')[-1].split('_')[-1].split('.')[0])
+
+    tom_loss = []
     
-    for step in range(opt.keep_step + opt.decay_step):
+    for step in range(current_step - 1, opt.keep_step + opt.decay_step):
         iter_start_time = time.time()
         inputs = train_loader.next_batch()
             
@@ -139,6 +150,8 @@ def train_tom(opt, train_loader, model, board):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
+        tom_loss.append(loss)
             
         if (step+1) % opt.display_count == 0:
             board_add_images(board, 'combine', visuals, step+1)
@@ -152,6 +165,7 @@ def train_tom(opt, train_loader, model, board):
                     loss_vgg.item(), loss_mask.item()), flush=True)
 
         if (step+1) % opt.save_count == 0:
+            plot_cost(tom_loss)
             save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'step_%06d.pth' % (step+1)))
 
 
@@ -179,12 +193,14 @@ def main():
             model = load_checkpoint(model, opt.checkpoint)
         train_gmm(opt, train_loader, model, board)
         save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'gmm_final.pth'))
+        print('gmm_final.pth is saved successfully')
     elif opt.stage == 'TOM':
         model = UnetGenerator(25, 4, 6, ngf=64, norm_layer=nn.InstanceNorm2d)
         if not opt.checkpoint =='' and os.path.exists(opt.checkpoint):
             model = load_checkpoint(model, opt.checkpoint)
         train_tom(opt, train_loader, model, board)
         save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'tom_final.pth'))
+        print('tom_final.pth is saved successfully')
     else:
         raise NotImplementedError('Model [%s] is not implemented' % opt.stage)
         
