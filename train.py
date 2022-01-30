@@ -53,7 +53,11 @@ def train_gmm(opt, train_loader, model, board):
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda = lambda step: 1.0 -
             max(0, step - opt.keep_step) / float(opt.decay_step + 1))
     
-    for step in range(opt.keep_step + opt.decay_step):
+    current_step = 0
+    if not opt.checkpoint =='' and os.path.exists(opt.checkpoint):
+        current_step = int(opt.checkpoint.split('/')[-1].split('_')[-1].split('.')[0])
+
+    for step in range(current_step - 1, opt.keep_step + opt.decay_step):
         iter_start_time = time.time()
         inputs = train_loader.next_batch()
             
@@ -172,13 +176,13 @@ def main():
     if opt.stage == 'GMM':
         model = GMM(opt)
         if not opt.checkpoint =='' and os.path.exists(opt.checkpoint):
-            load_checkpoint(model, opt.checkpoint)
+            model = load_checkpoint(model, opt.checkpoint)
         train_gmm(opt, train_loader, model, board)
         save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'gmm_final.pth'))
     elif opt.stage == 'TOM':
         model = UnetGenerator(25, 4, 6, ngf=64, norm_layer=nn.InstanceNorm2d)
         if not opt.checkpoint =='' and os.path.exists(opt.checkpoint):
-            load_checkpoint(model, opt.checkpoint)
+            model = load_checkpoint(model, opt.checkpoint)
         train_tom(opt, train_loader, model, board)
         save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'tom_final.pth'))
     else:

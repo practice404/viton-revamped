@@ -435,4 +435,5 @@ def load_checkpoint(model, checkpoint_path):
         return
     model.load_state_dict(torch.load(checkpoint_path))
     model.cuda()
+    return model
 
