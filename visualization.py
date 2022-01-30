@@ -1,6 +1,8 @@
 from tensorboardX import SummaryWriter
 import torch
 from PIL import Image
+import matplotlib.pyplot as plt
+import numpy as np
 import os
 
 def tensor_for_board(img_tensor):
@@ -55,4 +57,9 @@ def save_images(img_tensors, img_names, save_dir):
             array = array.swapaxes(0, 1).swapaxes(1, 2)
             
         Image.fromarray(array).save(os.path.join(save_dir, img_name))
+
+def plot_cost(losses):
+    plt.style.use('seaborn')
+    plt.plot(losses)
+    plt.show()
 
