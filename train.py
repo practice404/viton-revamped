@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 import argparse
 import os
@@ -97,6 +98,8 @@ def train_gmm(opt, train_loader, model, board):
 
         if (step+1) % opt.save_count == 0:
             plot_cost(gmm_loss)
+            with open('gmm_loss.txt', 'a') as f:
+                np.savetxt(f, gmm_loss)
             save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'step_%06d.pth' % (step+1)))
 
 
@@ -166,6 +169,8 @@ def train_tom(opt, train_loader, model, board):
 
         if (step+1) % opt.save_count == 0:
             plot_cost(tom_loss)
+            with open('tom_loss.txt', 'a') as f:
+                np.savetxt(f, tom_loss)
             save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'step_%06d.pth' % (step+1)))
 
 
